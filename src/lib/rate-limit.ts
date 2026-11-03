@@ -7,6 +7,7 @@ const globalWithLimits = globalThis as typeof globalThis & { __oauthGuideLimits?
 const limits = globalWithLimits.__oauthGuideLimits ?? (globalWithLimits.__oauthGuideLimits = new Map());
 
 export function checkGenerationLimit(address: string): { allowed: boolean; retryAfter: number } {
+  if (process.env.NODE_ENV !== "production") return { allowed: true, retryAfter: 0 };
   const now = Date.now();
   for (const [key, value] of limits) if (value.resetAt <= now) limits.delete(key);
   const hash = createHash("sha256").update(address).digest("hex");
