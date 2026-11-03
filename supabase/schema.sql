@@ -6,5 +6,9 @@ create table if not exists public.generated_guides (
 
 alter table public.generated_guides enable row level security;
 
--- The app accesses this table only from its server using the service role key.
--- Do not expose SUPABASE_SERVICE_ROLE_KEY to browser code.
+-- Only the server-side service role (used by SUPABASE_SECRET_KEY) may access generated guides.
+revoke all on table public.generated_guides from anon, authenticated;
+grant all on table public.generated_guides to service_role;
+
+-- The app accesses this table only from its server using a Supabase secret key.
+-- Never expose SUPABASE_SECRET_KEY to browser code.

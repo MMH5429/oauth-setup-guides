@@ -14,7 +14,7 @@ Generated guides are stored in .data/generated-guides.json during local developm
 
 ## Deploy and persist share links
 
-Deploy the repository to Vercel. Add NVIDIA_API_KEY (and optionally NVIDIA_MODEL) as server-side environment variables. For durable generated-guide links across serverless instances, create a Supabase project, run supabase/schema.sql, and set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel. The service-role key is read only by server routes. Never add real credentials to the repository or browser code.
+Deploy the repository to Vercel. Add NVIDIA_API_KEY (and optionally NVIDIA_MODEL) as server-side environment variables. For durable generated-guide links across serverless instances, create a Supabase project, run supabase/schema.sql, and set SUPABASE_URL and SUPABASE_SECRET_KEY in Vercel. The Supabase secret key is read only by server routes. Never add real credentials to the repository or browser code.
 
 The local JSON store is a development fallback; serverless deployments need Supabase for durable generated guides. Generation is unlimited in local development and limited to four requests per client IP per hour in production per running process. This in-memory limit is a demo safeguard, not production-grade distributed abuse protection.
 
