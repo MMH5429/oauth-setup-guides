@@ -23,7 +23,7 @@ const guideSchema = z.object({
   name: z.string(), vendor: z.string(), tagline: z.string(), category: z.enum(["Developer tools", "Communication", "Productivity", "Other"]),
   mark: z.string(), markColor: z.string(), difficulty: z.number().int().min(1).max(5),
   effort: z.string(), approval: z.string(), summary: z.string(), managedAuth: z.string(),
-  prerequisites: z.array(z.string()).min(2).max(7),
+  prerequisites: z.array(z.string()).min(1).max(7),
   steps: z.array(z.object({ title: z.string(), description: z.string(), owner: z.enum(["you", "agent", "both"]) })).min(3).max(8),
   blockers: z.array(z.string()).min(1).max(7),
   agentCan: z.array(z.string()).min(1).max(5), youMust: z.array(z.string()).min(1).max(5),
@@ -98,6 +98,25 @@ async function searchDuckDuckGo(query: string): Promise<Array<{ title: string; u
   return results;
 }
 
+async function searchBingRss(query: string): Promise<Array<{ title: string; url: string }>> {
+  const endpoint = "https://www.bing.com/search?format=rss&q=" + encodeURIComponent(query);
+  const response = await fetch(endpoint, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; OAuthGuideResearch/1.0)", Accept: "application/rss+xml, application/xml, text/xml" },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error("Fallback web search could not be reached (" + response.status + ").");
+  const xml = await response.text();
+  const results: Array<{ title: string; url: string }> = [];
+  for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
+    const item = match[1];
+    const title = decodeHtml(item.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const rawUrl = decodeHtml(item.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || "").trim();
+    const url = safePublicHttpsUrl(rawUrl);
+    if (title && url && !url.hostname.endsWith("bing.com")) results.push({ title, url: url.toString() });
+  }
+  return results;
+}
+
 function htmlToText(html: string): string {
   const main = html.match(/<(main|article)\b[^>]*>([\s\S]*?)<\/\1>/i)?.[2] || html;
   return decodeHtml(main
@@ -113,7 +132,13 @@ async function fetchResearchPages(app: string): Promise<ResearchSource[]> {
     `site:docs.composio.dev/toolkits/managed-auth ${app} managed OAuth`,
   ];
   const searchResponses = await Promise.allSettled(queries.map(searchDuckDuckGo));
-  const searchResults = searchResponses.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  let searchResults = searchResponses.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  // Public serverless hosts may block DuckDuckGo's HTML results page. Fall back to
+  // Bing's RSS endpoint so unfamiliar apps can still be researched without a key.
+  if (!searchResults.length) {
+    const fallbackResponses = await Promise.allSettled(queries.map(searchBingRss));
+    searchResults = fallbackResponses.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  }
   const unique = searchResults.filter((source, index) => searchResults.findIndex((item) => item.url === source.url) === index).slice(0, 6);
   if (!unique.length) throw new Error("Search returned no usable results for this app.");
   const pages = await Promise.all(unique.map(async (source): Promise<ResearchSource | null> => {
@@ -206,7 +231,10 @@ export async function POST(request: Request) {
     let raw: unknown;
     try { raw = JSON.parse(outputText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); } catch { return NextResponse.json({ error: "The research agent returned an unreadable guide. Please try again." }, { status: 502 }); }
     const guideData = guideSchema.safeParse(raw);
-    if (!guideData.success) return NextResponse.json({ error: "The research agent returned an incomplete guide. Please try again." }, { status: 502 });
+    if (!guideData.success) {
+      console.error("OAuth guide validation failed:", JSON.stringify(guideData.error.issues.map(({ path, code, message }) => ({ path, code, message }))));
+      return NextResponse.json({ error: "The research agent returned an incomplete guide. Please try again." }, { status: 502 });
+    }
     const generatedSources = guideData.data.sources.flatMap((source) => {
       const candidate = safePublicHttpsUrl(source.url);
       if (!candidate) return [];
