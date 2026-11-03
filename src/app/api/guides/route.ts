@@ -170,7 +170,12 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Enter an app name or website between 2 and 200 characters." }, { status: 400 });
   const app = validSubmittedApp(parsed.data.app);
   if (!app) return NextResponse.json({ error: "Enter a public http or https website, or an app name." }, { status: 400 });
-  if (!process.env.NVIDIA_API_KEY) return NextResponse.json({ error: "Live research needs an NVIDIA API key. Add NVIDIA_API_KEY to .env.local and restart the app." }, { status: 503 });
+  if (!process.env.NVIDIA_API_KEY) {
+    const message = process.env.VERCEL
+      ? "Live research is not configured for this deployment yet. The site owner needs to add NVIDIA_API_KEY in the Vercel project settings and redeploy."
+      : "Live research needs an NVIDIA API key. Add NVIDIA_API_KEY to .env.local and restart the app.";
+    return NextResponse.json({ error: message }, { status: 503 });
+  }
 
   try {
     const researchPages = await fetchResearchPages(app);
