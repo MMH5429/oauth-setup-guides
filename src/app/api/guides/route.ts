@@ -49,6 +49,16 @@ function validSubmittedApp(value: string): string | null {
   } catch { return null; }
 }
 
+function groqRateLimitMessage(response: Response, providerMessage?: string, stage = "request"): string {
+  const details = [
+    `Groq rate-limited the ${stage} step (HTTP 429). This is separate from this app’s demo request cap.`,
+    response.headers.get("retry-after") ? `Retry after ${response.headers.get("retry-after")} seconds.` : "",
+    response.headers.get("x-ratelimit-remaining-requests") ? `Requests remaining today: ${response.headers.get("x-ratelimit-remaining-requests")}.` : "",
+    providerMessage ? `Groq says: ${providerMessage}` : "Check the Limits and request logs in the Groq Console for the exact quota." ,
+  ].filter(Boolean);
+  return details.join(" ");
+}
+
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
@@ -91,7 +101,7 @@ export async function POST(request: Request) {
       error?: { message?: string };
     };
     if (!searchResponse.ok) {
-      const message = searchResponse.status === 401 ? "The Groq API key was rejected. Check GROQ_API_KEY." : searchResponse.status === 429 ? "The research service is busy or its rate limit was reached. Try again later." : searchPayload.error?.message || "The research service could not research this app.";
+      const message = searchResponse.status === 401 ? "The Groq API key was rejected. Check GROQ_API_KEY." : searchResponse.status === 429 ? groqRateLimitMessage(searchResponse, searchPayload.error?.message, "web research") : searchPayload.error?.message || "The research service could not research this app.";
       return NextResponse.json({ error: message }, { status: searchResponse.status === 401 ? 503 : searchResponse.status === 429 ? 429 : 502 });
     }
     const researchText = searchPayload.output_text || searchPayload.output?.flatMap((item) => [item.text, ...(item.content || []).map((part) => part.text)]).filter(Boolean).join("\n");
@@ -116,7 +126,7 @@ export async function POST(request: Request) {
       error?: { message?: string };
     };
     if (!response.ok) {
-      const message = response.status === 401 ? "The Groq API key was rejected. Check GROQ_API_KEY." : response.status === 429 ? "The research service is busy or its rate limit was reached. Try again later." : payload.error?.message || "The research service could not complete this guide.";
+      const message = response.status === 401 ? "The Groq API key was rejected. Check GROQ_API_KEY." : response.status === 429 ? groqRateLimitMessage(response, payload.error?.message, "guide formatting") : payload.error?.message || "The research service could not complete this guide.";
       return NextResponse.json({ error: message }, { status: response.status === 401 ? 503 : response.status === 429 ? 429 : 502 });
     }
     const outputParts = payload.output?.flatMap((item) => item.content || []) || [];
