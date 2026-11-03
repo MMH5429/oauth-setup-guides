@@ -38,3 +38,17 @@ export async function getSavedGuide(id: string): Promise<OAuthGuide | null> {
     return saved[id] ?? null;
   } catch { return null; }
 }
+
+export async function listSavedGuides(): Promise<OAuthGuide[]> {
+  const supabase = supabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase.from("generated_guides").select("guide, created_at").order("created_at", { ascending: false });
+    if (error) throw new Error("Could not list saved guides from Supabase.");
+    return (data || []).map((row) => row.guide as OAuthGuide).filter((guide) => guide?.generated);
+  }
+  const file = path.join(process.cwd(), ".data", "generated-guides.json");
+  try {
+    const saved = JSON.parse(await readFile(file, "utf8")) as Record<string, OAuthGuide>;
+    return Object.values(saved).filter((guide) => guide?.generated).reverse();
+  } catch { return []; }
+}

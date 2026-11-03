@@ -123,6 +123,21 @@ button { cursor: pointer; }
 .empty-state h3 { margin: 10px 0 6px; color: var(--ink); font-family: var(--serif); font-size: 22px; font-weight: 400; }
 .empty-state p { font-size: 12px; }
 .quiet-button { padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--green); background: white; font-size: 10px; }
+.saved-guide-section { margin-top: 64px; padding-top: 38px; border-top: 1px solid #e8ece6; }
+.saved-guide-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+.saved-guide-heading h2,.saved-page-heading h1 { margin: 9px 0 7px; font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacing: -.035em; }
+.saved-guide-heading p { margin: 0; color: #778078; font-size: 11px; }
+.saved-guide-heading .text-link { flex: 0 0 auto; }
+.saved-guides-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 145px; padding: 22px; border: 1px dashed #d5ded3; border-radius: 9px; color: #89948b; background: #fafbf9; text-align: center; }
+.saved-guides-empty > span { color: #6d9275; font-size: 22px; }
+.saved-guides-empty h2 { margin: 10px 0 0; color: var(--ink); font-family: var(--serif); font-size: 21px; font-weight: 400; }
+.saved-guides-empty p { margin: 7px 0 0; font-size: 11px; }
+.saved-guides-empty .primary-button { margin-top: 14px; }
+.saved-page { min-height: 70vh; padding-top: 31px; padding-bottom: 72px; }
+.saved-page-heading { margin-bottom: 27px; }
+.saved-page-heading h1 { font-size: 39px; }
+.saved-page-heading p { max-width: 540px; line-height: 1.6; }
+.saved-page-count { padding: 8px 10px; border: 1px solid #e5eae3; border-radius: 20px; color: #728075; background: white; font-size: 8px; font-weight: 750; letter-spacing: .1em; }
 
 .why-section { padding: 76px 0; background: #f0f4ee; }
 .why-inner { display: grid; grid-template-columns: .85fr 1fr; gap: 90px; align-items: center; }
@@ -283,6 +298,9 @@ button { cursor: pointer; }
   .trust-strip > div:nth-child(-n+2) { border-bottom: 1px solid #edf0eb; }
   .library-section { padding-top: 60px; padding-bottom: 60px; }
   .section-heading { align-items: start; }
+  .saved-guide-heading { align-items: start; }
+  .saved-guide-heading h2,.saved-page-heading h1 { font-size: 27px; }
+  .saved-page-count { margin-top: 10px; }
   .section-heading h2 { max-width: 245px; font-size: 31px; }
   .section-heading p { max-width: 280px; font-size: 11px; line-height: 1.6; }
   .library-count { gap: 6px; padding-top: 8px; }

@@ -4,10 +4,19 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { OAuthGuide } from "@/lib/guides";
 import { checkGenerationLimit } from "@/lib/rate-limit";
-import { saveGuide } from "@/lib/storage";
+import { listSavedGuides, saveGuide } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+
+export async function GET() {
+  try {
+    return NextResponse.json({ guides: await listSavedGuides() }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("Saved OAuth guide listing failed:", error);
+    return NextResponse.json({ error: "Saved guides could not be loaded. Check the storage configuration." }, { status: 503 });
+  }
+}
 
 const inputSchema = z.object({ app: z.string().trim().min(2).max(200) });
 const guideSchema = z.object({

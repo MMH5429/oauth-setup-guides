@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { OAuthGuide } from "@/lib/guides";
+import { GuideCard } from "@/components/guide-card";
 
-const categories = ["All guides", "Developer tools", "Communication", "Productivity"] as const;
+const categories = ["All guides", "Developer tools", "Communication", "Productivity", "Other"] as const;
 
-export function LibraryClient({ guides }: { guides: OAuthGuide[] }) {
+export function LibraryClient({ guides, generatedGuides: initialGeneratedGuides }: { guides: OAuthGuide[]; generatedGuides: OAuthGuide[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All guides");
+  const [generatedGuides, setGeneratedGuides] = useState(initialGeneratedGuides);
   const [appInput, setAppInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -25,10 +27,37 @@ export function LibraryClient({ guides }: { guides: OAuthGuide[] }) {
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
+  useEffect(() => {
+    let active = true;
+    async function refreshSavedGuides() {
+      try {
+        const response = await fetch("/api/guides", { cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json() as { guides?: OAuthGuide[] };
+        if (!active || !Array.isArray(result.guides)) return;
+        setGeneratedGuides((current) => {
+          const loadedIds = new Set(result.guides?.map((guide) => guide.id));
+          return [...current.filter((guide) => !loadedIds.has(guide.id)), ...result.guides!];
+        });
+      } catch { /* keep the server-rendered and locally added guides visible */ }
+    }
+    void refreshSavedGuides();
+    window.addEventListener("focus", refreshSavedGuides);
+    window.addEventListener("pageshow", refreshSavedGuides);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshSavedGuides);
+      window.removeEventListener("pageshow", refreshSavedGuides);
+    };
+  }, []);
   const visibleGuides = useMemo(() => guides.filter((guide) => {
     const searchable = [guide.name, guide.vendor, guide.tagline, guide.category].join(" ").toLowerCase();
     return searchable.includes(query.toLowerCase()) && (activeCategory === "All guides" || guide.category === activeCategory);
   }), [guides, query, activeCategory]);
+  const visibleGeneratedGuides = useMemo(() => generatedGuides.filter((guide) => {
+    const searchable = [guide.name, guide.vendor, guide.tagline, guide.category].join(" ").toLowerCase();
+    return searchable.includes(query.toLowerCase()) && (activeCategory === "All guides" || guide.category === activeCategory);
+  }), [generatedGuides, query, activeCategory]);
 
   async function generateGuide(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +68,7 @@ export function LibraryClient({ guides }: { guides: OAuthGuide[] }) {
       const response = await fetch("/api/guides", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: appInput.trim() }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "We couldn’t research that app right now.");
+      if (result.guide) setGeneratedGuides((current) => [result.guide, ...current.filter((guide) => guide.id !== result.guide.id)]);
       router.push("/g/" + encodeURIComponent(result.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
@@ -50,7 +80,7 @@ export function LibraryClient({ guides }: { guides: OAuthGuide[] }) {
     <main>
       <header className="topbar">
         <Link className="brand" href="/" aria-label="OAuth Setup Guides home"><span className="brand-symbol">C</span><span>composio<span className="brand-light"> / guides</span></span></Link>
-        <nav className="topnav" aria-label="Main navigation"><a href="#library">Guides</a><a href="#how-it-works">How it works</a><a className="nav-cta" href="#research">Research an app <span aria-hidden="true">↗</span></a></nav>
+        <nav className="topnav" aria-label="Main navigation"><a href="#library">Guides</a><Link href="/saved">Saved ({generatedGuides.length})</Link><a href="#how-it-works">How it works</a><a className="nav-cta" href="#research">Research an app <span aria-hidden="true">↗</span></a></nav>
       </header>
 
       <section className="hero-wrap">
@@ -97,7 +127,11 @@ export function LibraryClient({ guides }: { guides: OAuthGuide[] }) {
             <div className="research-foot"><span>◷ Usually takes about a minute</span><span>↗ Sources included</span></div>
           </article>
         </div>
-        {visibleGuides.length === 0 && <div className="empty-state"><span>⌕</span><h3>No guides match that search</h3><p>Try another app name or clear your filters.</p><button className="quiet-button" onClick={() => { setQuery(""); setActiveCategory("All guides"); }}>Clear filters</button></div>}
+        {visibleGuides.length === 0 && visibleGeneratedGuides.length === 0 && <div className="empty-state"><span>⌕</span><h3>No guides match that search</h3><p>Try another app name or clear your filters.</p><button className="quiet-button" onClick={() => { setQuery(""); setActiveCategory("All guides"); }}>Clear filters</button></div>}
+        <section className="saved-guide-section" id="saved-guides">
+          <div className="saved-guide-heading"><div><div className="eyebrow muted">YOUR RESEARCH</div><h2>Saved guides</h2><p>Guides you’ve generated stay here, ready to open again.</p></div><Link href="/saved" className="text-link">View all <span aria-hidden="true">→</span></Link></div>
+          {visibleGeneratedGuides.length > 0 ? <div className="guide-grid">{visibleGeneratedGuides.map((guide) => <GuideCard key={guide.id} guide={guide} />)}</div> : generatedGuides.length === 0 ? <div className="saved-guides-empty"><span>✳</span><p>Your researched guides will appear here after you build one.</p></div> : <div className="saved-guides-empty"><p>No saved guides match the current search or category.</p></div>}
+        </section>
       </section>
 
       <section className="why-section" id="how-it-works"><div className="page-shell why-inner">
@@ -111,16 +145,4 @@ export function LibraryClient({ guides }: { guides: OAuthGuide[] }) {
       <footer className="footer page-shell"><Link className="brand" href="/"><span className="brand-symbol">C</span><span>composio<span className="brand-light"> / guides</span></span></Link><span>Know the path. Ship with confidence.</span><a href="https://docs.composio.dev/toolkits/managed-auth" target="_blank" rel="noreferrer">Managed auth docs ↗</a></footer>
     </main>
   );
-}
-
-function GuideCard({ guide }: { guide: OAuthGuide }) {
-  const effort = guide.effort.split(" · ")[0];
-  const approval = guide.approval.split(".")[0];
-  const difficultyText = guide.difficulty <= 2 ? "SMOOTH SAILING" : guide.difficulty <= 3 ? "SOME STEPS" : "MORE INVOLVED";
-  return <Link href={"/guides/" + guide.slug} className="guide-card">
-    <div className="guide-card-head"><div className="provider-mark" style={{ backgroundColor: guide.markColor }}>{guide.mark}</div><span className="difficulty"><span>{"●".repeat(guide.difficulty)}<i>{"●".repeat(5 - guide.difficulty)}</i></span><small>{difficultyText}</small></span></div>
-    <div className="guide-card-copy"><div className="provider-vendor">{guide.vendor}</div><h3>{guide.name}<span aria-hidden="true">↗</span></h3><p>{guide.tagline}</p></div>
-    <div className="guide-card-meta"><span><small>SETUP</small><b>{effort}</b></span><span className="meta-divider" /><span><small>APPROVAL</small><b>{approval}</b></span></div>
-    <div className="guide-card-foot"><span>{guide.category}</span><span className="open-guide">Read guide <b>→</b></span></div>
-  </Link>;
 }

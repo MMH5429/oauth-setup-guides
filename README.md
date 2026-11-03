@@ -10,13 +10,13 @@ A small, source-backed guide library for agent builders preparing OAuth integrat
 4. Set NVIDIA_API_KEY in .env.local to enable live research. Create the key in the NVIDIA API Catalog at build.nvidia.com. The library and curated guides work without it.
 5. Run npm run dev and open http://localhost:3000.
 
-Generated guides are stored in .data/generated-guides.json during local development. The .data directory is ignored by Git.
+Generated guides are stored in .data/generated-guides.json during local development. They appear in the home page's Saved guides section and on /saved, and each opens at a stable /g/:id page. The .data directory is ignored by Git.
 
 ## Deploy and persist share links
 
 Deploy the repository to Vercel. Add NVIDIA_API_KEY (and optionally NVIDIA_MODEL) as server-side environment variables. For durable generated-guide links across serverless instances, create a Supabase project, run supabase/schema.sql, and set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel. The service-role key is read only by server routes. Never add real credentials to the repository or browser code.
 
-The local JSON store is a development fallback; serverless deployments need Supabase for durable generated guides. Generation is limited to four requests per client IP per hour in each running process. This in-memory limit is a demo safeguard, not production-grade distributed abuse protection.
+The local JSON store is a development fallback; serverless deployments need Supabase for durable generated guides. Generation is unlimited in local development and limited to four requests per client IP per hour in production per running process. This in-memory limit is a demo safeguard, not production-grade distributed abuse protection.
 
 ## Product decisions
 
@@ -41,8 +41,10 @@ Live research uses DuckDuckGo's public HTML search to discover current pages, fe
 
 - / — searchable guide library and live research form
 - /guides/github, /guides/slack, /guides/google — curated guides
+- /saved — list of generated guides saved to local JSON or Supabase
 - /g/:id — generated guide share page
 - POST /api/guides — research an app and save its guide
+- GET /api/guides — list saved generated guides
 - GET /api/guides/:id — retrieve a saved guide
 
 ## Build checks
