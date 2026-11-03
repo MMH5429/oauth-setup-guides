@@ -85,12 +85,20 @@ export async function POST(request: Request) {
         { role: "user", content: [{ type: "input_text", text: "Research OAuth app setup for this app: " + app }] },
       ],
     });
-    const searchPayload = await searchResponse.json() as { output_text?: string; error?: { message?: string } };
+    const searchPayload = await searchResponse.json() as {
+      output_text?: string;
+      output?: Array<{ type?: string; text?: string; content?: Array<{ type?: string; text?: string }> }>;
+      error?: { message?: string };
+    };
     if (!searchResponse.ok) {
       const message = searchResponse.status === 401 ? "The Groq API key was rejected. Check GROQ_API_KEY." : searchResponse.status === 429 ? "The research service is busy or its rate limit was reached. Try again later." : searchPayload.error?.message || "The research service could not research this app.";
       return NextResponse.json({ error: message }, { status: searchResponse.status === 401 ? 503 : searchResponse.status === 429 ? 429 : 502 });
     }
-    if (!searchPayload.output_text) return NextResponse.json({ error: "The research agent returned no research. Please try again." }, { status: 502 });
+    const researchText = searchPayload.output_text || searchPayload.output?.flatMap((item) => [item.text, ...(item.content || []).map((part) => part.text)]).filter(Boolean).join("\n");
+    if (!researchText) {
+      console.error("Groq browser search returned an unexpected response shape:", JSON.stringify({ keys: Object.keys(searchPayload), outputTypes: searchPayload.output?.map((item) => item.type) }));
+      return NextResponse.json({ error: "The research agent returned no research. Please try again." }, { status: 502 });
+    }
 
     // Groq documents browser search and structured outputs as incompatible in one request.
     // Research first, then format the findings with schema-constrained output.
@@ -98,7 +106,7 @@ export async function POST(request: Request) {
       model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
       input: [
         { role: "system", content: [{ type: "input_text", text: "Convert the browser research into a concise, careful OAuth setup guide. Use only facts and direct source URLs present in the research below. Never invent requirements, approval timelines, or URLs. Separate likely hands-on setup time from provider review wait. Mark estimates as estimates. Distinguish provider app registration from end-user account connection; explain whether Composio managed auth may avoid a custom app. Clearly state uncertainty. A guide source must be a direct https URL present in the research; classify provider and Composio docs as official, other sources as community." }] },
-        { role: "user", content: [{ type: "input_text", text: "App submitted: " + app + "\n\nBrowser research:\n" + searchPayload.output_text }] },
+        { role: "user", content: [{ type: "input_text", text: "App submitted: " + app + "\n\nBrowser research:\n" + researchText }] },
       ],
       text: { format: { type: "json_schema", name: "oauth_setup_guide", strict: true, schema } },
     });
