@@ -2,6 +2,12 @@
 
 A small, source-backed guide library for agent builders preparing OAuth integrations. It explains the provider app registration path, likely setup effort and review wait, common blockers, and the split between agent research and developer-owned actions.
 
+## Demo and source
+
+- Live app: https://oauth-setup-guides-gules.vercel.app/
+- Public source: https://github.com/MMH5429/oauth-setup-guides
+- Saved generated guides: https://oauth-setup-guides-gules.vercel.app/saved
+
 ## Run locally
 
 1. Install Node.js 20.9 or later.
@@ -35,7 +41,7 @@ The curated guides were researched against official documentation on November 3,
 - **Google:** External apps in Testing are limited to test users; refresh-token expiry can affect testing. Brand review is commonly 2–3 business days, but sensitive or restricted scopes can require additional work and do not share a single overall ETA. [Web server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server) · [Brand verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification) · [Policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance) · [App states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)
 - **Composio:** Managed auth supplies and maintains the OAuth app for supported toolkits. Custom credentials are useful for own branding, scopes, or quota. [Managed OAuth apps](https://docs.composio.dev/toolkits/managed-auth)
 
-Live research uses DuckDuckGo's public HTML search to discover current pages, fetches up to eight pages, then sends short text extracts to NVIDIA's chat API to produce the guide. Sources are restricted to pages actually retrieved and every guide is schema-validated before saving. DuckDuckGo's public HTML markup can change or rate-limit requests; some provider pages block automated fetches. The guide's facts and estimates still need developer review. See NVIDIA's [LLM API documentation](https://docs.api.nvidia.com/nim/reference/llm-apis).
+Live research uses DuckDuckGo's public HTML search, with Bing RSS as a fallback, to discover current pages. It fetches up to six pages, then sends short text extracts to NVIDIA's chat API to produce the guide. Sources are restricted to pages actually retrieved and every guide is schema-validated before saving. Search markup can change or rate-limit requests; some provider pages block automated fetches. The guide's facts and estimates still need developer review. See NVIDIA's [LLM API documentation](https://docs.api.nvidia.com/nim/reference/llm-apis).
 
 ## Routes
 
